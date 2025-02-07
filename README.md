@@ -199,12 +199,85 @@ $$ Z = S^k X W$$
 
 # 3. Aplicações de GNNs
 
-## 3.1 DPI/PPI
+Nas subsequentes seções de aplicação, vamos verificar a utilização de GNNs por meio de artigos pontuais. 
 
-## 3.2 Graph Clustering
+## 3.1 Protein-Protein-Interaction
+
+Liu et. al [[3]](https://ieeexplore.ieee.org/abstract/document/8983330?casa_token=u60lbPuEl9IAAAAA:pfWDu5lX4EV5BzXfIgN4wEctlGQi3-Jd_WMaJCvjj0D7IKHhwjxWqqpi6VFy3fnqEr67VHbl) foram os pioneiros a utilizar arquiteturas de GCN para gerar features representativas em problemas de PPI [[4]](https://arxiv.org/abs/2404.10450).
+
+A estrutura primária de uma proteína é uma sequência linear de amino ácidos (AA). Observando os 20 tipos de AA existentes no organismo, é possível criar uma matriz de One-Hot-Encodding no formato da matriz identidade $ I_{20 \times 20} $.
+
+Como o conjunto de dados contém proteínas e interações entre proteínas, é possível criar um grafo sem pesos e não direcionado para aplicar modelos de GNN e gerar embeddings representativos dessas relações.
+
+Os autores observaram que um modelo baseado em convoluções da matriz espectral com uma camada se saia melhor nos experimentos. Assim, o modelo utilizado é definido como
+
+$$ X_1^{N \times f} = \sigma \left( \tilde{D}^{-1} \tilde{A} \tilde X_0^{N \times N} W_0\right)$$
+
+## 3.2 Node Clustering
+
+Algoritmos de Node Clustering que utilizam GNNs podem ser divididos em dois grandes tipos, Modelos Profundos e Algoritmos de Node Embedding.
+
+### 3.2.1 Modelos Profundos
+
+**Modelos Profundos** buscam otimizar uma função objetivo que seja representativa do agrupamento. Como o agrupamento é feito de maneira não supervisionada, a modelagem dessas funções ainda é um desafio. Grande parte dos estudos encontrados utilizam um agrupador externo no momento do treinamento para encontrar vértices representativos. Esses vértices são utilizados para gerar uma distribuição alvo que guia o agrupamento e, consequentemente, minimizam a função objetivo.
+
+Vamos verificar dois exemplos de algoritmos, um utilizando agrupador externo e outro baseado em otimização de modularidade.
+
+* **DNENC**
+
+Deep Neighbor-Aware Embedding for Node Clustering (DNENC) busca otimizar os embeddings gerados a partir de uma distribuição alvo. Essa distribuição é obtida por meio do algoritmo KMeans depois que os dados foram passados pela geração de um embedding.
+
+Em linhas gerais, o algoritmo aplica um encoding a partir de um modelo GAT ou GCN, desse embedding $ Z = GNN(X,A) $ é gerada um agrupamento via KMeans em uma verção soft a partir de duas matrizes $ P $ e $ Q $ da seguinte forma:
+
+$$ q_{iu} = \frac{(1 + \| z_i - \mu_u \|^2 )^{-1}}{\sum_k (1 + \| z_i - \mu_k \|^2 )^{-1}} $$
+
+$$ p_{iu} = \frac{\frac{q_{iu}^2}{\sum_i q_{iu}}}{\sum_k \left( \frac{q_{ik}^2}{\sum_i q_{ik}} \right)}
+ $$
+
+em que $ \mu_u $ é o centróide do cluster $ u $. Parte da função de erro utilizada para esse modelo consiste em calcular a distâncias entre as distribuições $ P $ e $ Q $ da seguinte forma:
+
+$$ L_c = KL(P \parallel Q) = \sum_i \sum_u p_{iu} \log \frac{p_{iu}}{q_{iu}} $$
+
+Assim, o modelo consegue guiar seu agrupamento para construir um embedding onde as partições são melhor desenhadas. A função de erro final é simplesmente a construção de um decoding GAE juntamente com a $ L_c $,
+
+$$L = L_r + \gamma L_c $$
+
+* **UCoDe**
+
+Unified Community Detection (UCoDe) busca otimizar o algoritmo da modularidade com o uso de GNNs. O grande diferencial desse modelo é utilizar a GNN para solucionar o calculo da modularidade em um grafo (que é um problema NP-Hard). 
+
+O cálculo da modularidade para um grafo $ G $ dada uma partição $ C $ e definida por
+
+$$ \mathcal{Q}(G;C) = \frac{1}{4 |E|} \sum_{s = 1}^k \sum_{ij} \left( A_{ij} - \frac{d_id_j}{2 |E|} \right) C_{is} C_{js}$$
+
+Assumindo $ B = B_{ij} = A_{ij} - \frac{d_id_j}{2 |E|} $
+
+$$ \mathcal{Q}(G;C) = \frac{1}{4 |E|} \text{Tr} \left(C^T B C \right)$$
+
+É possível observar que o produto $ C^T B C $ representa a modularidade em níveis de comunidade. Assim, podemos definir a matriz $ \mathcal{Q}_M $ como a matriz de modularidade em nível de comunidade
+
+$$ \mathcal{Q}_M = C^TBC = C^T \left( \right)$$
+
+A partir desse momento, vamos relaxar a matriz $ C $ permitindo que ela seja uma matriz não binária. Essa partição soft permitirá uma otimização por GNN que será mostrada mais a frente.
+
 
 ## 3.3 Link prediction
 
+
 ## 3.4 Graph Drawing
+
+Tiezzi et. al [[4]](https://ieeexplore.ieee.org/abstract/document/9810169) propuseram o uso de Graph Neural Drawers (GNDs), mecanismos capazes de mapear um grafo para um espaço 2D a partir de uma função de perda. 
+
+Algoritmos de Graph Drawing (GD) otimizam funções que expressão algum tipo de "beleza" na visualização de grafos. Em geral, algumas dessas funções calculam a quantidade de cruzamento de arestas (edge crossing) e a minimização de ângulos entre arestas.
+
+Seja $ G = (\mathcal{V}, \mathcal{E}) $, a função de coordenadas $ p_i : \mathcal{V} \rightarrow \mathbb{R}^2 $, sendo $ P \in \mathbb{R}^{N\times 2} $ a matriz de coordenadas de cada vértice.
+
+A definição de um critério estético como função diferenciável é difícil de expressar. Encontrar a interseção de duas retas é equivalente a encontrar a solução da equação
+
+$$ \begin{cases}a_1x + b_1y + c1 = 0 \\ a_2x + b_2y + c_2 = 0\end{cases} $$
+
+O que não é passível de otimização via Stochastic Gradient Descend (SGD), dado que não provém gradientes. Para solucionar esse problema, o artigo em questão propõe o uso de NA.
+
+NA são redes neurais que aprendem a "beleza" de exemplos e generalizam para dados ainda não vistos. Por definição, NA são arquiteturas que processam dois vértices de input e produzem se eles se intersectam ou não. As coordenadas são identificadas por uma quadrupla ordenada $ e_u = (p_i, p_j), e_u \in \mathcal{E}.$ Assim o NA é definido como $ \mathcal{v}(\cdot, \cdot, \cdot) : \mathcal{E} \times \mathbb{R}^m \rightarrow \mathbb{R}$
 
 ## 3.5 OCC / Fake News Detection
